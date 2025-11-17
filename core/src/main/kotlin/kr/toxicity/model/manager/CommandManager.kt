@@ -55,12 +55,10 @@ object CommandManager : GlobalManager {
             command("spawn") {
                 withShortDescription("summons some model to given type")
                 withAliases("s")
-                
                 withRequiredArgument("model", StringParser.stringParser())
                 withOptionalArgument("type", StringParser.stringParser())
                 withOptionalArgument("scale", DoubleParser.doubleParser(0.0))
                 withOptionalArgument("location", LocationParser.locationParser())
-
                 executes { ctx ->
                     val player = ctx.sender().sender as? Player
                         ?: return@executes ctx.sender().sender.audience().warn("Only players can use this command.")
@@ -71,20 +69,16 @@ object CommandManager : GlobalManager {
             command("test") {
                 withShortDescription("Tests some model's animation to specific player")
                 withAliases("t")
-                
                 withRequiredArgument("model", StringParser.stringParser())
                 withRequiredArgument("animation", StringParser.stringParser())
                 withOptionalArgument("player", SinglePlayerSelectorParser.singlePlayerSelectorParser())
                 withOptionalArgument("location", LocationParser.locationParser())
-
                 executes { ctx -> test(ctx.sender().sender, ctx) }
             }
             command("disguise") {
                 withShortDescription("disguises self.")
                 withAliases("d")
-                
                 withRequiredArgument("model", StringParser.stringParser())
-
                 executes { ctx ->
                     val player = ctx.sender().sender as? Player
                         ?: return@executes ctx.sender().sender.audience().warn("Only players can use this command.")
@@ -95,9 +89,7 @@ object CommandManager : GlobalManager {
             command("undisguise") {
                 withShortDescription("undisguises self.")
                 withAliases("ud")
-                
                 withOptionalArgument("model", StringParser.stringParser())
-
                 executes { ctx ->
                     val player = ctx.sender().sender as? Player
                         ?: return@executes ctx.sender().sender.audience().warn("Only players can use this command.")
@@ -108,12 +100,10 @@ object CommandManager : GlobalManager {
             command("play") {
                 withShortDescription("plays player animation.")
                 withAliases("p")
-                
                 withRequiredArgument("limb", StringParser.stringParser())
                 withRequiredArgument("animation", StringParser.stringParser())
                 withOptionalArgument("loop_type", StringParser.stringParser())
                 withOptionalArgument("hide", BooleanParser.booleanParser())
-
                 executes { ctx ->
                     val player = ctx.sender().sender as? Player
                         ?: return@executes ctx.sender().sender.audience().warn("Only players can use this command.")
@@ -121,27 +111,21 @@ object CommandManager : GlobalManager {
                     play(player, ctx)
                 }
             }
-            
             command("hide") {
                 withShortDescription("hides some entities from target player.")
-                
                 withRequiredArgument("model", StringParser.stringParser())
                 withRequiredArgument("player", SinglePlayerSelectorParser.singlePlayerSelectorParser())
                 withRequiredArgument("entities", MultipleEntitySelectorParser.multipleEntitySelectorParser())
 
                 executes { ctx -> hide(ctx.sender().sender, ctx) }
             }
-            
             command("show") {
                 withShortDescription("shows some entities to target player.")
-                
                 withRequiredArgument("model", StringParser.stringParser())
                 withRequiredArgument("player", SinglePlayerSelectorParser.singlePlayerSelectorParser())
                 withRequiredArgument("entities", MultipleEntitySelectorParser.multipleEntitySelectorParser())
-
                 executes { ctx -> show(ctx.sender().sender, ctx) }
             }
-            
             command("version") {
                 withShortDescription("checks BetterModel's version.")
                 withAliases("v")

@@ -47,7 +47,7 @@ inline fun CommandContext<CommandSourceStack>.mapToLimb(name: String, ifNotFound
     mapString(name) { BetterModel.limbOrNull(it) ?: ifNotFound(it) }
 
 class CommandModule(
-    private val parent: CommandModule?,
+    parent: CommandModule?,
     private val commandName: String
 ) {
     private companion object {
@@ -153,7 +153,6 @@ class CommandModule(
     }
 
     fun build(manager: PaperCommandManager<CommandSourceStack>) {
-        // Register help command
         manager.command(
             manager.commandBuilder(commandName, *aliases.toTypedArray())
                 .permission(rootPermission)
@@ -168,7 +167,6 @@ class CommandModule(
                 }
         )
 
-        // Register subcommands
         sub.values.forEach { subCmd ->
             var builder = manager.commandBuilder(commandName, *aliases.toTypedArray())
                 .permission(rootPermission)
@@ -186,7 +184,6 @@ class CommandModule(
             manager.command(builder.handler(subCmd.executor))
         }
 
-        // Register main executor if exists
         mainExecutor?.let { executor ->
             manager.command(
                 manager.commandBuilder(commandName, *aliases.toTypedArray())
@@ -204,7 +201,6 @@ class CommandModule(
                     }
             )
         } ?: run {
-            // Default to help if no main executor
             manager.command(
                 manager.commandBuilder(commandName, *aliases.toTypedArray())
                     .permission(rootPermission)
