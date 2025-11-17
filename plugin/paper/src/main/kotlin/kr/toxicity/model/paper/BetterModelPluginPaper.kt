@@ -6,14 +6,11 @@
  */
 package kr.toxicity.model.paper
 
-import dev.jorel.commandapi.CommandAPI
-import dev.jorel.commandapi.CommandAPIPaperConfig
 import kr.toxicity.model.BetterModelPluginImpl
 
 @Suppress("UNUSED")
 class BetterModelPluginPaper : BetterModelPluginImpl() {
     override fun onLoad() {
         super.onLoad()
-        CommandAPI.onLoad(CommandAPIPaperConfig(this).fallbackToLatestNMS(true).silentLogs(true))
     }
 }

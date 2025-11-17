@@ -27,6 +27,8 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.server.ServerLoadEvent
+import org.incendo.cloud.execution.ExecutionCoordinator
+import org.incendo.cloud.paper.PaperCommandManager
 import java.io.InputStream
 import java.util.function.Consumer
 import java.util.jar.JarEntry
@@ -52,6 +54,10 @@ abstract class BetterModelPluginImpl : AbstractBetterModelPlugin() {
     }
 
     override fun onEnable() {
+        val commandManager = PaperCommandManager.builder()
+            .executionCoordinator(ExecutionCoordinator.asyncCoordinator())
+            .buildOnEnable(this)
+        CommandManager.initialize(commandManager)
         props.managers.forEach(GlobalManager::start)
         if (isSnapshot) warn(
             "This build is dev version: be careful to use it!".toComponent(),

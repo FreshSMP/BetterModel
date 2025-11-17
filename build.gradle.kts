@@ -8,6 +8,13 @@ plugins {
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
+allprojects {
+    repositories {
+        mavenCentral()
+        maven("https://s01.oss.sonatype.org/content/repositories/releases/")
+    }
+}
+
 val minecraft = property("minecraft_version").toString()
 val versionString = version.toString()
 val groupString = group.toString()

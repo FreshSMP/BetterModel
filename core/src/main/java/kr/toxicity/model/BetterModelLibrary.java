@@ -38,20 +38,6 @@ public final class BetterModelLibrary {
                             "bstats-base"
                     )
     );
-    public static final LibraryData COMMANDAPI_PAPER_SHADE = register(
-            "dev{}jorel",
-            "commandapi-paper-shade",
-            builder -> builder.relocation("dev{}jorel{}commandapi")
-                    .versionRef("commandapi-paper-core")
-                    .predicate(BooleanConstantSupplier.of(BetterModel.IS_PAPER))
-    );
-    public static final LibraryData COMMANDAPI_SPIGOT_SHADE = register(
-            "dev{}jorel",
-            "commandapi-spigot-shade",
-            builder -> builder.relocation("dev{}jorel{}commandapi")
-                    .versionRef("commandapi-paper-core")
-                    .predicate(BooleanConstantSupplier.of(!BetterModel.IS_PAPER))
-    );
     public static final LibraryData MOLANG_COMPILER = register(
             "gg{}moonflower",
             "molang-compiler",

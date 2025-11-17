@@ -23,6 +23,10 @@ dependencies {
         exclude("org.ow2.asm")
     }
 
+    shade(libs.cloud.core)
+    shade(libs.cloud.brigadier)
+    shade(libs.cloud.paper)
+
     compileOnly(libs.bundles.manifestLibrary)
     testImplementation(libs.bundles.manifestLibrary)
 

@@ -26,9 +26,14 @@ public final class BetterModelLoader implements PluginLoader {
     public void classloader(@NotNull PluginClasspathBuilder classpathBuilder) {
         var lib = new MavenLibraryResolver();
         lib.addRepository(new RemoteRepository.Builder(
-                null,
+                "maven-central",
                 "default",
                 "https://maven-central.storage-download.googleapis.com/maven2"
+        ).build());
+        lib.addRepository(new RemoteRepository.Builder(
+                "sonatype-releases",
+                "default",
+                "https://s01.oss.sonatype.org/content/repositories/releases/"
         ).build());
         try (
                 var stream = Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("paper-library"));

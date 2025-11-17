@@ -6,169 +6,218 @@
  */
 package kr.toxicity.model.manager
 
-import dev.jorel.commandapi.CommandAPI
-import dev.jorel.commandapi.arguments.*
-import dev.jorel.commandapi.executors.CommandArguments
-import dev.jorel.commandapi.executors.CommandExecutor
-import dev.jorel.commandapi.executors.PlayerCommandExecutor
+import io.papermc.paper.command.brigadier.CommandSourceStack
 import kr.toxicity.model.api.BetterModel
 import kr.toxicity.model.api.BetterModelPlugin.ReloadResult.*
 import kr.toxicity.model.api.animation.AnimationIterator
 import kr.toxicity.model.api.animation.AnimationModifier
 import kr.toxicity.model.api.pack.PackZipper
 import kr.toxicity.model.api.tracker.EntityHideOption
-import kr.toxicity.model.api.tracker.Tracker
 import kr.toxicity.model.api.tracker.TrackerModifier
 import kr.toxicity.model.api.version.MinecraftVersion
 import kr.toxicity.model.command.*
 import kr.toxicity.model.util.*
 import net.kyori.adventure.text.format.NamedTextColor.*
+import org.bukkit.Location
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Entity
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 import org.bukkit.util.Vector
-import kotlin.math.pow
+import org.incendo.cloud.bukkit.parser.location.LocationParser
+import org.incendo.cloud.bukkit.parser.selector.MultipleEntitySelectorParser
+import org.incendo.cloud.bukkit.parser.selector.SinglePlayerSelectorParser
+import org.incendo.cloud.context.CommandContext
+import org.incendo.cloud.paper.PaperCommandManager
+import org.incendo.cloud.parser.standard.BooleanParser
+import org.incendo.cloud.parser.standard.DoubleParser
+import org.incendo.cloud.parser.standard.StringParser
 
 object CommandManager : GlobalManager {
 
-    private val modelKeys get() = StringArgument("model").suggest { BetterModel.modelKeys() }
-    private val limbKeys get() = StringArgument("limb").suggest { BetterModel.limbKeys() }
-    private val playerArgs get() = EntitySelectorArgument.OnePlayer("player")
-    private val entitiesArgs get() = EntitySelectorArgument.ManyEntities("entities")
+    private lateinit var commandManager: PaperCommandManager<CommandSourceStack>
+
+    fun initialize(manager: PaperCommandManager<CommandSourceStack>) {
+        this.commandManager = manager
+    }
 
     override fun start() {
-        commandModule("bettermodel") {
+
+        val module = commandModule("bettermodel") {
             withAliases("bm")
-        }.apply {
+
             command("reload") {
                 withAliases("re", "rl")
                 withShortDescription("reloads this plugin.")
-                executes(CommandExecutor { sender, _ -> reload(sender) })
+                executes { ctx -> reload(ctx.sender().sender) }
             }
             command("spawn") {
                 withShortDescription("summons some model to given type")
                 withAliases("s")
-                withArguments(modelKeys)
-                withOptionalArguments(
-                    EntityTypeArgument("type"),
-                    DoubleArgument("scale").suggest((-2..2).map { 4.0.pow(it.toDouble()).toString() }),
-                    LocationArgument("location")
-                )
-                executesPlayer(PlayerCommandExecutor(::spawn))
+                
+                withRequiredArgument("model", StringParser.stringParser())
+                withOptionalArgument("type", StringParser.stringParser())
+                withOptionalArgument("scale", DoubleParser.doubleParser(0.0))
+                withOptionalArgument("location", LocationParser.locationParser())
+
+                executes { ctx ->
+                    val player = ctx.sender().sender as? Player
+                        ?: return@executes ctx.sender().sender.audience().warn("Only players can use this command.")
+
+                    spawn(player, ctx)
+                }
             }
             command("test") {
                 withShortDescription("Tests some model's animation to specific player")
                 withAliases("t")
-                withArguments(
-                    modelKeys,
-                    StringArgument("animation").suggestNullable {
-                        it.previousArgs.mapNullableString("model") { model -> BetterModel.modelOrNull(model) }?.animations()?.keys
-                    }
-                )
-                withOptionalArguments(
-                    playerArgs,
-                    LocationArgument("location")
-                )
-                executes(CommandExecutor(::test))
+                
+                withRequiredArgument("model", StringParser.stringParser())
+                withRequiredArgument("animation", StringParser.stringParser())
+                withOptionalArgument("player", SinglePlayerSelectorParser.singlePlayerSelectorParser())
+                withOptionalArgument("location", LocationParser.locationParser())
+
+                executes { ctx -> test(ctx.sender().sender, ctx) }
             }
             command("disguise") {
                 withShortDescription("disguises self.")
                 withAliases("d")
-                withArguments(modelKeys)
-                executesPlayer(PlayerCommandExecutor(::disguise))
+                
+                withRequiredArgument("model", StringParser.stringParser())
+
+                executes { ctx ->
+                    val player = ctx.sender().sender as? Player
+                        ?: return@executes ctx.sender().sender.audience().warn("Only players can use this command.")
+
+                    disguise(player, ctx)
+                }
             }
             command("undisguise") {
                 withShortDescription("undisguises self.")
                 withAliases("ud")
-                withOptionalArguments(
-                    StringArgument("model").suggestNullable { (it.sender as? Player)?.toRegistry()?.trackers()?.map(Tracker::name) }
-                )
-                executesPlayer(PlayerCommandExecutor(::undisguise))
+                
+                withOptionalArgument("model", StringParser.stringParser())
+
+                executes { ctx ->
+                    val player = ctx.sender().sender as? Player
+                        ?: return@executes ctx.sender().sender.audience().warn("Only players can use this command.")
+
+                    undisguise(player, ctx)
+                }
             }
             command("play") {
                 withShortDescription("plays player animation.")
                 withAliases("p")
-                withArguments(
-                    limbKeys,
-                    StringArgument("animation").suggestNullable {
-                        it.previousArgs.mapNullableString("limb") { model -> BetterModel.limbOrNull(model) }?.animations()?.keys
-                    }
-                )
-                withOptionalArguments(
-                    StringArgument("loop_type").suggest(AnimationIterator.Type.entries.map { it.name.lowercase() }),
-                    BooleanArgument("hide")
-                )
-                executesPlayer(PlayerCommandExecutor(::play))
+                
+                withRequiredArgument("limb", StringParser.stringParser())
+                withRequiredArgument("animation", StringParser.stringParser())
+                withOptionalArgument("loop_type", StringParser.stringParser())
+                withOptionalArgument("hide", BooleanParser.booleanParser())
+
+                executes { ctx ->
+                    val player = ctx.sender().sender as? Player
+                        ?: return@executes ctx.sender().sender.audience().warn("Only players can use this command.")
+
+                    play(player, ctx)
+                }
             }
+            
             command("hide") {
                 withShortDescription("hides some entities from target player.")
-                withArguments(modelKeys, playerArgs, entitiesArgs)
-                executes(CommandExecutor(::hide))
+                
+                withRequiredArgument("model", StringParser.stringParser())
+                withRequiredArgument("player", SinglePlayerSelectorParser.singlePlayerSelectorParser())
+                withRequiredArgument("entities", MultipleEntitySelectorParser.multipleEntitySelectorParser())
+
+                executes { ctx -> hide(ctx.sender().sender, ctx) }
             }
+            
             command("show") {
                 withShortDescription("shows some entities to target player.")
-                withArguments(modelKeys, playerArgs, entitiesArgs)
-                executes(CommandExecutor(::show))
+                
+                withRequiredArgument("model", StringParser.stringParser())
+                withRequiredArgument("player", SinglePlayerSelectorParser.singlePlayerSelectorParser())
+                withRequiredArgument("entities", MultipleEntitySelectorParser.multipleEntitySelectorParser())
+
+                executes { ctx -> show(ctx.sender().sender, ctx) }
             }
+            
             command("version") {
                 withShortDescription("checks BetterModel's version.")
                 withAliases("v")
-                executes(CommandExecutor { sender, _ -> version(sender) })
+                executes { ctx -> version(ctx.sender().sender) }
             }
-        }.build().register(PLUGIN)
-        CommandAPI.onEnable()
+        }
+
+        module.build(commandManager)
     }
 
-    private fun disguise(player: Player, args: CommandArguments) {
-        args.mapToModel("model") { return player.audience().warn("Unable to find this model: $it") }.getOrCreate(player)
+    private fun disguise(player: Player, ctx: CommandContext<CommandSourceStack>) {
+        val model = ctx.mapToModel("model") { 
+            player.audience().warn("Unable to find this model: $it")
+            return
+        }
+        model.getOrCreate(player)
     }
 
-    private fun hide(sender: CommandSender, args: CommandArguments) {
-        val model = args.map<String>("model")
-        val player = args.map<Player>("player")
-        if (!args.any<Entity>("entities") {
-                it.toRegistry()?.tracker(model)?.hide(player) == true
-            }) {
+    private fun hide(sender: CommandSender, ctx: CommandContext<CommandSourceStack>) {
+        val model = ctx.get<String>("model")
+        val player = ctx.get<Player>("player")
+        val entities = ctx.get<List<Entity>>("entities")
+        
+        if (!entities.any { it.toRegistry()?.tracker(model)?.hide(player) == true }) {
             sender.audience().warn("Failed to hide any of provided entities.")
         }
     }
 
-    private fun show(sender: CommandSender, args: CommandArguments) {
-        val model = args.map<String>("model")
-        val player = args.map<Player>("player")
-        if (!args.any<Entity>("entities") {
-                it.toRegistry()?.tracker(model)?.show(player) == true
-            }) {
-            sender.audience().warn("Failed to hide any of provided entities.")
+    private fun show(sender: CommandSender, ctx: CommandContext<CommandSourceStack>) {
+        val model = ctx.get<String>("model")
+        val player = ctx.get<Player>("player")
+        val entities = ctx.get<List<Entity>>("entities")
+        
+        if (!entities.any { it.toRegistry()?.tracker(model)?.show(player) == true }) {
+            sender.audience().warn("Failed to show any of provided entities.")
         }
     }
 
-    private fun undisguise(player: Player, args: CommandArguments) {
-        val model = args.mapNullable<String>("model")
+    private fun undisguise(player: Player, ctx: CommandContext<CommandSourceStack>) {
+        val model = ctx.mapNullable<String>("model")
         if (model != null) {
-            player.toTracker(model)?.close() ?: player.audience().warn("Cannot find this model to undisguise: $model")
-        } else player.toRegistry()?.close() ?: player.audience().warn("Cannot find any model to undisguise")
+            player.toTracker(model)?.close() 
+                ?: player.audience().warn("Cannot find this model to undisguise: $model")
+        } else {
+            player.toRegistry()?.close() 
+                ?: player.audience().warn("Cannot find any model to undisguise")
+        }
     }
 
-    private fun spawn(player: Player, args: CommandArguments) {
-        val model = args.mapToModel("model") { return player.audience().warn("Unable to find this model: $it") }
-        val type = args.map("type", EntityType.HUSK)
-        val scale = args.map("scale", 1.0)
-        val loc = args.map("location") { player.location }
-        loc.run {
-            (world ?: player.world).spawnEntity(
-                this,
-                type
-            ).apply {
-                if (PLUGIN.version() >= MinecraftVersion.V1_21 && this is LivingEntity) getAttribute(ATTRIBUTE_SCALE)?.baseValue = scale
-            }
-        }.takeIf {
-            it.isValid
-        }?.let { entity ->
-            model.create(entity)
-        } ?: player.audience().warn("Entity spawning has been blocked.")
+    private fun spawn(player: Player, ctx: CommandContext<CommandSourceStack>) {
+        val model = ctx.mapToModel("model") { 
+            player.audience().warn("Unable to find this model: $it")
+            return
+        }
+        val type = ctx.mapNullableString("type") { str ->
+            runCatching {
+                EntityType.valueOf(str.uppercase())
+            }.onFailure { _ ->
+                player.audience().warn("Invalid entity type: '$str'. Using default.")
+            }.getOrNull()
+        } ?: EntityType.HUSK
+        val scale = ctx.getOrDefault("scale", 1.0)
+        val loc = ctx.optional<Location>("location").orElse(player.location)
+        PLUGIN.scheduler().task(loc) {
+            loc.run {
+                (world ?: player.world).spawnEntity(this, type).apply {
+                    if (PLUGIN.version() >= MinecraftVersion.V1_21 && this is LivingEntity) {
+                        getAttribute(ATTRIBUTE_SCALE)?.baseValue = scale
+                    }
+                }
+            }.takeIf {
+                it.isValid
+            }?.let { entity ->
+                model.create(entity)
+            } ?: player.audience().warn("Entity spawning has been blocked.")
+        }
     }
 
     private fun version(sender: CommandSender) {
@@ -179,8 +228,12 @@ object CommandManager : GlobalManager {
             audience.infoNotNull(
                 emptyComponentOf(),
                 "Current: ${PLUGIN.semver()}".toComponent(),
-                version.release?.let { version -> componentOf("Latest release: ") { append(version.toURLComponent()) } },
-                version.snapshot?.let { version -> componentOf("Latest snapshot: ") { append(version.toURLComponent()) } }
+                version.release?.let { v -> 
+                    componentOf("Latest release: ") { append(v.toURLComponent()) } 
+                },
+                version.snapshot?.let { v -> 
+                    componentOf("Latest snapshot: ") { append(v.toURLComponent()) } 
+                }
             )
         }
     }
@@ -204,7 +257,10 @@ object CommandManager : GlobalManager {
                             hoverEvent("Packing all model to resource pack.".toComponent().toHoverEvent())
                         },
                         "${BetterModel.models().size.withComma()} of models are loaded successfully. (${result.length().toByteFormat()})".toComponent(YELLOW),
-                        (if (result.packResult.changed()) "${result.packResult.size().withComma()} of files are zipped." else "Zipping is skipped due to the same result.").toComponent(YELLOW),
+                        (if (result.packResult.changed()) 
+                            "${result.packResult.size().withComma()} of files are zipped." 
+                        else 
+                            "Zipping is skipped due to the same result.").toComponent(YELLOW),
                         emptyComponentOf()
                     )
                 }
@@ -222,18 +278,25 @@ object CommandManager : GlobalManager {
         }
     }
 
-    private fun play(player: Player, args: CommandArguments) {
+    private fun play(player: Player, ctx: CommandContext<CommandSourceStack>) {
         val audience = player.audience()
-        val limb = args.mapToLimb("limb") { return audience.warn("Unable to find this limb: $it") }
-        val animation = args.mapString("animation") { limb.animation(it).orElse(null) ?: return audience.warn("Unable to find this animation: $it") }
-        val loopType = args.mapNullableString("loop_type") {
+        val limb = ctx.mapToLimb("limb") { 
+            audience.warn("Unable to find this limb: $it")
+            return
+        }
+        val animation = ctx.mapString("animation") { 
+            limb.animation(it).orElse(null)?.also { anim -> return@mapString anim }
+            audience.warn("Unable to find this animation: $it")
+            return
+        }
+        val loopType = ctx.mapNullableString("loop_type") {
             runCatching {
                 AnimationIterator.Type.valueOf(it.uppercase())
             }.onFailure { _ ->
                 audience.warn("Invalid loop type: '$it'. Using default.")
             }.getOrNull()
         }
-        val hide = args.mapNullable<Boolean>("hide") != false
+        val hide = ctx.mapNullable<Boolean>("hide") != false
         limb.getOrCreate(player, TrackerModifier.DEFAULT) {
             it.hideOption(if (hide) EntityHideOption.DEFAULT else EntityHideOption.FALSE)
         }.run {
@@ -241,20 +304,30 @@ object CommandManager : GlobalManager {
         }
     }
 
-    private fun test(sender: CommandSender, args: CommandArguments) {
+    private fun test(sender: CommandSender, ctx: CommandContext<CommandSourceStack>) {
         val audience = sender.audience()
-        val model = args.mapToModel("model") { return audience.warn("Unable to find this model: $it") }
-        val animation = args.mapString("animation") { str -> model.animation(str).orElse(null) ?: return audience.warn("Unable to find this animation: $str") }
-        val player = args.map("player") { sender as? Player ?: return audience.warn("Unable to find target player.") }
-        val location = args.map("location") {
-            player.location.apply {
-                add(Vector(0, 0, 10).rotateAroundY(-Math.toRadians(yaw.toDouble())))
-                yaw += 180
-            }
+        val model = ctx.mapToModel("model") { 
+            audience.warn("Unable to find this model: $it")
+            return
         }
-        model.create(location).run {
-            spawn(player)
-            animate(animation, AnimationModifier(0, 0, AnimationIterator.Type.PLAY_ONCE), ::close)
+        val animation = ctx.mapString("animation") { str -> 
+            model.animation(str).orElse(null)?.also { anim -> return@mapString anim }
+            audience.warn("Unable to find this animation: $str")
+            return
+        }
+        val player = ctx.optional<Player>("player").orElse(null) ?: (sender as? Player ?: run {
+            audience.warn("Unable to find target player.")
+            return
+        })
+        val location = ctx.optional<Location>("location").orElse(null) ?: player.location.apply {
+            add(Vector(0, 0, 10).rotateAroundY(-Math.toRadians(yaw.toDouble())))
+            yaw += 180
+        }
+        PLUGIN.scheduler().task(location) {
+            model.create(location).run {
+                spawn(player)
+                animate(animation, AnimationModifier(0, 0, AnimationIterator.Type.PLAY_ONCE), ::close)
+            }
         }
     }
 
@@ -263,6 +336,6 @@ object CommandManager : GlobalManager {
     }
 
     override fun end() {
-        CommandAPI.onDisable()
+
     }
 }
